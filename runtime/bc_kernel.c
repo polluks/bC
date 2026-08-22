@@ -75,19 +75,20 @@ void bc_init(void)
 void bc_score_set(unsigned char v)
 {
     int i;
-    for (i = 5; i >= 2; i--) { bc_score[i] = v % 10; v /= 10; }
+    unsigned val = v;
+    for (i = 0; i < 6; i++) bc_score[i] = 0;
+    for (i = 5; i >= 0 && val; i--) { bc_score[i] = val % 10; val /= 10; }
 }
 #ifndef BC_NO_SCORE_ADD
 void bc_score_add(unsigned char v)
 {
-    int i, d, carry = 0;
-    for (i = 5; i >= 4 && v; i--) {
-        d = bc_score[i] + (v % 10) + carry;
-        bc_score[i] = d % 10; carry = d / 10; v /= 10;
-    }
-    while (carry && i >= 0) {
-        d = bc_score[i] + carry;
-        bc_score[i] = d % 10; carry = d / 10; i--;
+    int i, carry = 0;
+    unsigned val = v;
+    for (i = 5; i >= 0 && (val || carry); i--) {
+        int dgt = bc_score[i] + (val % 10) + carry;
+        if (dgt > 9) { dgt -= 10; carry = 1; } else carry = 0;
+        bc_score[i] = dgt;
+        val /= 10;
     }
 }
 #endif

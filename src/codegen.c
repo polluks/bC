@@ -110,7 +110,7 @@ typedef struct Dim {
 } Dim;
 typedef struct Con { char *name; long val; int done, busy; Expr *expr; struct Con *next; } Con;
 typedef struct Lab { char *name; int defined, refs; struct Lab *next; } Lab;
-typedef struct DT { char *name; unsigned char bytes[256]; int len; long start; struct DT *next; } DT;
+typedef struct DT { char *name; unsigned char bytes[256]; int len; long start; int sread_used; struct DT *next; } DT;
 
 static Dim *dims;
 static Con *consts;
@@ -393,6 +393,7 @@ static void add_datatable(char *name, char *payload, int is_sdata, long start, i
         cg_fatal(line, "data table '%s' redefines something", name);
     snprintf(paybuf, sizeof paybuf, "%s", payload);
     n = split_bytes(paybuf, tmp, 256, line);
+    if (n >= 256) cg_fatal(line, "data table '%s' exceeds 255 bytes", name);
     if (n == 0) cg_warn(line, "data table '%s' is empty", name);
     t = calloc(1, sizeof *t);
     t->name = bc_strdup_lower(name);
@@ -401,15 +402,6 @@ static void add_datatable(char *name, char *payload, int is_sdata, long start, i
     t->start = start & 255;
     t->next = dtables;
     dtables = t;
-    oprintf(&g_pro, "static const unsigned char bc_dt_%s[%d] = {", name, t->len);
-    {
-        int i;
-        for (i = 0; i < t->len; i++)
-            oprintf(&g_pro, "%s0x%02X", i ? "," : "", t->bytes[i]);
-    }
-    oprintf(&g_pro, "};\n");
-    oprintf(&g_pro, "static unsigned char bc_sri_%s = %ld;\n", name,
-            is_sdata ? (start & 255) : 0L);
 }
 
 static void add_player(int which, char *payload, int line)
@@ -643,6 +635,7 @@ static char *ex_str(Expr *e)
                 cg_fatal(e->line, "sread() takes a data table name");
             t = dt_find(A->id);
             if (!t) cg_fatal(e->line, "sread: unknown data table '%s'", A->id);
+            t->sread_used = 1;
             snprintf(buf, sizeof buf, "(bc_dt_%s[bc_sri_%s++])", t->name, t->name);
             return bc_strdup(buf);
         }
@@ -946,13 +939,13 @@ static void emit_stmt(Out *o, Stmt *s, int indent)
                 l->refs++;
                 if (s->n2) {   /* gosub */
                     int id = next_site();
-                    olinef(o, indent + 1, "case %d:", idx);
+                    olinef(o, indent + 1, "case %d:", idx + 1);
                     olinef(o, indent + 2, "if (bc_gsp >= BC_GOSUB_DEPTH) { bc_gsp = 0; goto bc_start; }");
                     olinef(o, indent + 2, "bc_gs[bc_gsp++] = %d;", id);
                     olinef(o, indent + 2, "goto %s;", lab_cname(l->name));
                     olinef(o, indent + 2, "bc_ret%d: ;", id);
                 } else {
-                    olinef(o, indent + 1, "case %d: goto %s;", idx, lab_cname(l->name));
+                    olinef(o, indent + 1, "case %d: goto %s;", idx + 1, lab_cname(l->name));
                 }
                 idx++;
             }
@@ -1097,6 +1090,18 @@ int cg_run(StmtList *prog, const char *srcname, const char *outpath)
         if (var_used[i]) fprintf(f, "unsigned char %c;\n", 'a' + i);
     for (i = 0; i < 7; i++)
         if (temp_used[i]) fprintf(f, "unsigned char temp%d;\n", i + 1);
+    {
+        DT *t;
+        for (t = dtables; t; t = t->next) {
+            int k;
+            fprintf(f, "static const unsigned char bc_dt_%s[%d] = {", t->name, t->len);
+            for (k = 0; k < t->len; k++)
+                fprintf(f, "%s0x%02X", k ? "," : "", t->bytes[k]);
+            fprintf(f, "};\n");
+            if (t->sread_used)
+                fprintf(f, "static unsigned char bc_sri_%s = %ld;\n", t->name, t->start);
+        }
+    }
     fputc('\n', f);
 
     fprintf(f, "int main(void)\n{\n");

@@ -191,6 +191,7 @@ branchsimple
     | GOSUB IDENT                              { $$ = st_new(S_GOSUB, LN); $$->s1 = $2; }
     | RETURNKW                                 { $$ = st_new(S_RETURN, LN); }
     | POP                                      { $$ = st_new(S_POP, LN); }
+    | EXIT                                     { $$ = st_new(S_EXIT, LN); }
     | DRAWSCREEN                               { $$ = st_new(S_DRAWSCREEN, LN); }
     ;
 
