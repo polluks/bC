@@ -1,0 +1,8 @@
+build/
+demo.c
+demo.o
+demo.bin
+*.o
+a.out*
+.DS_Store
+bc
