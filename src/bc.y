@@ -67,8 +67,6 @@ static StmtList *stl_join(StmtList *a, StmtList *b)
 %token <num> NUMBER PLAYERBLK PLAYFIELDBLK PFCOLORSBLK BKCOLORSBLK
 %token <id>  IDENT UNSUP
 %token <str> BLOCKDATA BLOCKSDATA BLOCKASM BLOCKPLAYER BLOCKPF BLOCKPFCOL BLOCKBKCOL
-%token LIVESBLK
-%token BLOCKLIVES
 
 %type <ex> expr lor land cnot cmp bor bxor band shift add mul unary postfix primary optstep dimtarget lval
 %type <el> optargs exprlist
@@ -154,7 +152,6 @@ simple
     | PLAYFIELDBLK BLOCKPF                     { $$ = st_new(S_PF, LN); $$->s3 = $2; }
     | PFCOLORSBLK BLOCKPFCOL                   { $$ = st_new(S_PFCOL, LN); $$->s3 = $2; }
     | BKCOLORSBLK BLOCKBKCOL                   { $$ = st_new(S_BKCOL, LN); $$->s3 = $2; }
-    | LIVESBLK BLOCKLIVES                      { $$ = st_new(S_LIVES, LN); }
     | PFPX expr expr OFF                       { $$ = st_new(S_PFPX, LN);     $$->e1=$2; $$->e2=$3;                 $$->n1 = 1; }
     | PFPX expr expr FLIP                      { $$ = st_new(S_PFPX, LN);     $$->e1=$2; $$->e2=$3;                 $$->n1 = 2; }
     | PFPX expr expr ON                        { $$ = st_new(S_PFPX, LN);     $$->e1=$2; $$->e2=$3;                 $$->n1 = 0; }

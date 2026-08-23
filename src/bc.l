@@ -80,7 +80,6 @@ void yyerror(const char *s);
 "playfield:"            { blkkind = S_PF;     pending = BLK_BODY; return PLAYFIELDBLK; }
 "pfcolors:"             { blkkind = S_PFCOL;  pending = BLK_BODY; return PFCOLORSBLK; }
 "bkcolors:"             { blkkind = S_BKCOL;  pending = BLK_BODY; return BKCOLORSBLK; }
-"lives:"                { blkkind = S_LIVES;  pending = BLK_BODY; return LIVESBLK; }
 
 <BLK_BODY>{
 [^\n]*\n                {

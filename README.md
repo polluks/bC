@@ -56,10 +56,9 @@ Emulate `demo.bin` in your favourite 2600 emulator (Stella, etc.).
 ## Limitations / deviations
 
 - 4K ROMs only; no bank switching, no multisprite/DPC+ kernels
-- score digits are maintained in RAM but not drawn on screen
+- score is drawn as a 16-line overlay zone above the playfield (chunky 4x4 playfield-pixel glyphs)
 - player positioning uses a coarse strobe loop (~3 px resolution)
 - sprites are 8×16 double-height, drawn from RAM buffers copied once at init
-- `lives:` block not implemented
 
 ## Layout
 

@@ -51,7 +51,7 @@ demo.bin: demo.o
 # host-side logic tests: run transpiled output natively against mocked TIA/RIOT
 test: bc
 	./bc -o $(OBJDIR)/host_gen.c test/host.bas
-	$(CC) $(CFLAGS) -c -Dmain=bC_main -Itest/mock -Iruntime -o $(OBJDIR)/host_gen.o $(OBJDIR)/host_gen.c
+	$(CC) $(CFLAGS) -c -Dmain=bC_main -DBC_TEST_HOOKS -Itest/mock -Iruntime -o $(OBJDIR)/host_gen.o $(OBJDIR)/host_gen.c
 	$(CC) $(CFLAGS) -Itest/mock -o $(OBJDIR)/host_test test/host_driver.c $(OBJDIR)/host_gen.o
 	$(OBJDIR)/host_test
 

@@ -24,6 +24,9 @@
  * lines = 88 lines, roughly centered */
 #define BC_PF_TOP 52
 
+/* first scanline of the 16-line score overlay zone (4 sub-rows x 4) */
+#define BC_SCORE_TOP 20
+
 /* ---- storage ---- */
 unsigned char bc_pf[44];       /* 11 rows x [PF0 PF1 PF2 0] */
 unsigned char bc_p0gfx[8];
@@ -36,6 +39,50 @@ unsigned char temp1, temp2, temp3, temp4, temp5, temp6, temp7;
 
 const unsigned char *bc_pfcolors = 0;
 const unsigned char *bc_bkcolors = 0;
+
+/* ---- score overlay ---- */
+/* Rendered into a dedicated 16-line zone above the playfield (visible
+ * lines 20..35) using the playfield registers: 4 sub-rows of 4 lines,
+ * each digit 4 playfield pixels wide (cols d*5 .. d*5+3).
+ * Rows are computed on the fly while drawing (no persistent buffers). */
+static const unsigned char bc_font[10][4] = {
+    { 0x6, 0x9, 0x9, 0x6 },  /* 0 */
+    { 0x2, 0x6, 0x2, 0x2 },  /* 1 */
+    { 0xE, 0x1, 0x6, 0xF },  /* 2 */
+    { 0xE, 0x1, 0x6, 0x1 },  /* 3 */
+    { 0x9, 0x9, 0xF, 0x1 },  /* 4 */
+    { 0xF, 0x8, 0xE, 0x1 },  /* 5 */
+    { 0xF, 0x8, 0xE, 0x9 },  /* 6 */
+    { 0xE, 0x1, 0x2, 0x2 },  /* 7 */
+    { 0x6, 0x9, 0x6, 0x9 },  /* 8 */
+    { 0x6, 0x9, 0x7, 0x1 }   /* 9 */
+};
+
+#ifdef BC_TEST_HOOKS
+unsigned char bc_test_scrow[3];   /* last rendered PF values (harness only) */
+#endif
+
+static void pf_bitpos(int c, int *bi, unsigned char *mask);
+
+static void bc_score_show(int r)
+{
+    int d, k, bi;
+    unsigned char msk, b0 = 0, b1 = 0, b2 = 0;
+    for (d = 0; d < 6; d++) {
+        unsigned char g = bc_font[bc_score[d]][r];
+        for (k = 0; k < 4; k++)
+            if (g & (8 >> k)) {
+                pf_bitpos(d * 5 + k, &bi, &msk);
+                if (bi == 0) b0 |= msk;
+                else if (bi == 1) b1 |= msk;
+                else b2 |= msk;
+            }
+    }
+    TIA.pf0 = b0; TIA.pf1 = b1; TIA.pf2 = b2;
+#ifdef BC_TEST_HOOKS
+    bc_test_scrow[0] = b0; bc_test_scrow[1] = b1; bc_test_scrow[2] = b2;
+#endif
+}
 
 /* ---- rand: 16-bit LFSR ---- */
 static unsigned int bc_lfsr = 1;
@@ -212,7 +259,7 @@ static void bc_pos_player(unsigned char *resp, unsigned char x)
 void bc_drawscreen(void)
 {
     int i, l;
-    unsigned char row = 0xFF;
+    unsigned char row = 0xFF, srow;
     unsigned char py0, py1;
 
     /* vertical sync: 3 lines */
@@ -230,9 +277,17 @@ void bc_drawscreen(void)
     TIA.vblank = 0;
 
     /* visible area */
+    srow = 0xFF;
     for (l = 0; l < BC_VIS_LINES; l++) {
         unsigned char g0 = 0, g1 = 0;
         TIA.wsync = 0;
+        if (l >= BC_SCORE_TOP && l < BC_SCORE_TOP + 16) {
+            unsigned char q = (l - BC_SCORE_TOP) >> 2;
+            if (q != srow) { srow = q; bc_score_show(q); }
+        } else if (l == BC_SCORE_TOP + 16 && srow != 0xFF) {
+            srow = 0xFF;
+            TIA.pf0 = 0; TIA.pf1 = 0; TIA.pf2 = 0;
+        }
         if (l >= BC_PF_TOP && l < BC_PF_TOP + 88) {
             unsigned char r = (l - BC_PF_TOP) >> 3;
             if (r != row) {

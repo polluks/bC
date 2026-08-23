@@ -1,5 +1,6 @@
 /* bC -- batari Basic to cc65-C transpiler. AST constructors + code generator. */
 #include <stdio.h>
+#include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
@@ -72,6 +73,21 @@ StmtList *stl_more(StmtList *l, Stmt *s)
 /* ---------------- output buffer ---------------- */
 
 typedef struct { char *s; size_t n, cap; } Out;
+
+/* true if buffer's last statement is "goto <ident>;" (trailing ws ignored) */
+static int body_ends_goto(const Out *b)
+{
+    const char *p, *q;
+    if (!b->s || b->n < 6) return 0;
+    p = b->s + b->n;
+    while (p > b->s && (p[-1] == '\n' || p[-1] == ' ' || p[-1] == '\t')) p--;
+    if (p == b->s || p[-1] != ';') return 0;
+    p--;
+    q = p;                          /* end of identifier */
+    while (p > b->s && (isalnum((unsigned char)p[-1]) || p[-1] == '_')) p--;
+    if (p == q || p - 5 < b->s) return 0;
+    return !memcmp(p - 5, "goto ", 5);
+}
 static Out g_pro, g_init, g_body;   /* declarations / init section / main body */
 
 static void oput(Out *o, const char *s)
@@ -997,7 +1013,6 @@ static void emit_stmt(Out *o, Stmt *s, int indent)
     case S_PF:     add_playfield(s->s3, s->line); break;
     case S_PFCOL:  add_colors(0, s->s3, s->line); break;
     case S_BKCOL:  add_colors(1, s->s3, s->line); break;
-    case S_LIVES:  cg_fatal(s->line, "lives: blocks are not supported yet"); break;
 
     case S_ASM: {
         char *dup = bc_strdup(s->s3 ? s->s3 : "");
@@ -1125,7 +1140,11 @@ int cg_run(StmtList *prog, const char *srcname, const char *outpath)
     }
     fprintf(f, "bc_start:\n    ;\n");
     fputs(g_body.s ? g_body.s : "", f);
-    fprintf(f, "    ;\n    goto bc_start;\n}\n");
+    /* Only emit the loop-back epilogue when the body doesn't already end
+     * in an unconditional goto (avoids unreachable/unused-label warnings). */
+    if (!body_ends_goto(&g_body))
+        fprintf(f, "    goto bc_start;\n");
+    fprintf(f, "}\n");
     fclose(f);
 
     for (l = labels; l; l = l->next) {

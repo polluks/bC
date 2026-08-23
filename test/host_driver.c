@@ -53,6 +53,13 @@ static void report(void)
         chk("score 250+250", bc_score[3], 5);
         chk("score high digits", bc_score[0] + bc_score[1] + bc_score[2], 0);
         chk("score low digits", bc_score[4] + bc_score[5], 0);
+        {
+            extern unsigned char bc_test_scrow[3];
+            int i, s = 0;
+            for (i = 0; i < 3; i++)
+                s |= bc_test_scrow[i];
+            chk("score overlay built", s != 0, 1);
+        }
     }
     chk("joy0right frames m", m, 11);
     chk("collision frames c", c, 3);
